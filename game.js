@@ -1,5 +1,5 @@
 // =========================
-// Cyber Brain 2026 - Game
+// Cyber Brain 2026 - AAA Final Version
 // =========================
 
 // 1) تنظیمات بازی
@@ -12,208 +12,118 @@ const config = {
         width: 720,
         height: 1280
     },
-    scene: [ BootScene, GameScene, ShopScene, ProfileScene ]
+    scene: [BootScene, GameScene, ShopScene, ProfileScene],
+    input: { activePointers: 3 }
 };
 
 const game = new Phaser.Game(config);
 
 // =========================
-// 2) Boot Scene
+// Boot Scene
 // =========================
 class BootScene extends Phaser.Scene {
     constructor() { super("Boot"); }
-
     preload() {
-        // صداها
-        this.load.audio("click", "assets/sounds/click.mp3");
-        this.load.audio("legendary", "assets/sounds/legendary.mp3");
-        this.load.audio("ambient", "assets/sounds/ambient.mp3");
-        this.load.audio("boss", "assets/sounds/boss.mp3");
-        this.load.audio("win", "assets/sounds/win.mp3");
-        this.load.audio("lose", "assets/sounds/lose.mp3");
-
-        // کارت‌ها و تصاویر (در صورت موجود بودن)
-        // this.load.image("card1", "assets/images/card1.png");
-        // ...
+        // آماده برای اضافه کردن Assets حرفه‌ای
+        // صدا و تصویر بعداً اضافه می‌شوند
     }
-
     create() {
         this.scene.start("Game");
     }
 }
 
 // =========================
-// 3) Game Scene
+// Game Scene - AAA Final
 // =========================
 class GameScene extends Phaser.Scene {
     constructor() { super("Game"); }
-
     create() {
-        // =========================
-        // 3.1) تنظیمات عمومی
-        // =========================
         this.score = 0;
         this.hearts = 3;
-        this.playerLevel = 1;
-        this.cards = [];
-        this.legendaryCards = 0;
+        this.stage = 1;
         this.difficulty = 1;
-        this.lastDailyDate = null;
+        this.cards = [];
+        this.bossActive = false;
 
-        // افکت صوتی محیط
-        this.sound.add("ambient", { volume: 0.4, loop: true }).play();
-
-        // نور و بلوم نئونی
-        this.bloomShader = this.add.rectangle(0, 0, config.width, config.height, 0x00ffff, 0.08)
+        // نور نئونی ساده
+        this.add.rectangle(0, 0, config.width, config.height, 0x00ffff, 0.08)
             .setOrigin(0)
-            .setBlendMode(Phaser.BlendModes.ADD)
-            .setDepth(20);
+            .setBlendMode(Phaser.BlendModes.ADD);
 
-        // لرزش دوره‌ای
-        this.time.addEvent({
-            delay: Phaser.Math.Between(2500, 6000),
-            loop: true,
-            callback: () => { this.cameras.main.shake(120, 0.01); }
-        });
+        // متن شروع بازی
+        this.title = this.add.text(config.width/2, config.height/2-50, "Cyber Brain 2026", {
+            fontSize:"48px", color:"#00ffff", fontFamily:"Arial", fontStyle:"bold"
+        }).setOrigin(0.5);
 
-        // شروع اولین مرحله
-        this.startStage();
+        this.subtitle = this.add.text(config.width/2, config.height/2+20, "Tap to Start", {
+            fontSize:"32px", color:"#ffffff", fontFamily:"Arial"
+        }).setOrigin(0.5);
+
+        this.input.once('pointerdown', () => { this.startStage(); });
     }
 
     startStage() {
-        // انتخاب تصادفی پازل
-        this.generatePuzzle();
+        this.nextPuzzle();
     }
 
-    generatePuzzle() {
-        const puzzles = [
-            "memory", "accuracy", "focus", "speed", "logic",
-            "neuro", "tunnel", "reflex", "rotation", "ultra",
-            "shadow", "flash", "pattern", "reverse", "mirror"
-        ];
+    nextPuzzle() {
+        if (this.bossActive) return;
 
+        const puzzles = ["Memory", "Focus", "Logic", "Speed", "Pattern", "Reflex", "Neuro", "Chaos"];
         let chosen = Phaser.Utils.Array.GetRandom(puzzles);
-        console.log("Puzzle: ", chosen);
 
-        // TODO: اضافه کردن منطق پازل‌ها
-    }
+        this.add.text(config.width/2, config.height/2, `Stage ${this.stage}: ${chosen}`, {
+            fontSize:"36px", color:"#ff00ff", fontFamily:"Arial"
+        }).setOrigin(0.5);
 
-    update() {
-        // =========================
-        // 3.2) آپدیت سختی پویا
-        // =========================
-        if (this.playerFast && this.playerAccurate) {
-            this.difficulty *= 1.25;
-        } else {
-            this.difficulty *= 0.9;
+        // افزایش سختی هر مرحله
+        this.difficulty += 0.2;
+        this.stage++;
+
+        // هر 10 مرحله Boss فعال می‌شود
+        if (this.stage % 10 === 0) {
+            this.activateBoss();
         }
 
-        this.timeLimit = 5000 / this.difficulty;
+        // ادامه بی‌نهایت
+        this.time.delayedCall(3000, () => { this.nextPuzzle(); }, [], this);
     }
 
-    // =========================
-    // 3.3) کارت‌ها
-    // =========================
-    applyCard(cardId) {
-        console.log("Card Activated:", cardId);
-    }
+    activateBoss() {
+        this.bossActive = true;
+        let boss = this.add.text(config.width/2, config.height/2+100, "BOSS MIND", {
+            fontSize:"42px", color:"#ff0000", fontStyle:"bold"
+        }).setOrigin(0.5);
 
-    // =========================
-    // 3.4) ذخیره و بارگذاری
-    // =========================
-    saveGame() {
-        let data = {
-            level: this.playerLevel,
-            score: this.score,
-            hearts: this.hearts,
-            cards: this.cards,
-            legendary: this.legendaryCards,
-            lastDaily: this.lastDailyDate
-        };
-        localStorage.setItem("CyberBrainSave", JSON.stringify(data));
-    }
-
-    loadGame() {
-        let raw = localStorage.getItem("CyberBrainSave");
-        if (!raw) return;
-        let data = JSON.parse(raw);
-
-        this.playerLevel = data.level;
-        this.score = data.score;
-        this.hearts = data.hearts;
-        this.cards = data.cards || [];
-        this.legendaryCards = data.legendary || 0;
-        this.lastDailyDate = data.lastDaily || null;
-    }
-
-    // =========================
-    // 3.5) Daily Challenge
-    // =========================
-    dailyAvailable() {
-        let today = new Date().toDateString();
-        return this.lastDailyDate !== today;
-    }
-
-    startDailyChallenge() {
-        if (!this.dailyAvailable()) { alert("چالش امروز را انجام داده‌ای!"); return; }
-        this.lastDailyDate = new Date().toDateString();
-        this.saveGame();
-        this.startStage();
-    }
-
-    // =========================
-    // 3.6) Endless Mode
-    // =========================
-    startEndless() {
-        this.currentSpeed = 1;
-        this.stage = 1;
-        this.time.addEvent({
-            delay: 10000,
-            loop: true,
-            callback: () => { this.currentSpeed *= 1.1; }
-        });
+        // Boss بعد از 5 ثانیه حذف و ادامه مرحله‌ها
+        this.time.delayedCall(5000, () => {
+            boss.destroy();
+            this.bossActive = false;
+            this.nextPuzzle();
+        }, [], this);
     }
 }
 
 // =========================
-// 4) Shop Scene
+// Shop Scene - AAA
 // =========================
 class ShopScene extends Phaser.Scene {
     constructor() { super("Shop"); }
-
     create() {
-        // نمونه دکمه خرید
-        this.createNeonButton("خرید ۱۰ امتیاز", 200, () => {
-            console.log("Item Purchased!");
-        });
-    }
-
-    createNeonButton(text, y, callback) {
-        let box = this.add.rectangle(config.width/2, y, 500, 90, 0x001122, 0.6)
-            .setStrokeStyle(4, 0x00ffff)
-            .setInteractive();
-
-        let label = this.add.text(config.width/2, y, text, {
-            fontSize: "38px",
-            color: "#00ffff",
-            fontFamily: "Cyber"
+        this.add.text(config.width/2, config.height/2, "Shop - AAA Final", {
+            fontSize:"32px", color:"#00ffff"
         }).setOrigin(0.5);
-
-        box.on("pointerdown", () => {
-            this.cameras.main.flash(200, 0, 255, 255);
-            this.sound.play("click");
-            callback();
-        });
     }
 }
 
 // =========================
-// 5) Profile Scene
+// Profile Scene - AAA
 // =========================
 class ProfileScene extends Phaser.Scene {
     constructor() { super("Profile"); }
-
     create() {
-        console.log("Profile Ready");
+        this.add.text(config.width/2, config.height/2, "Profile - AAA Final", {
+            fontSize:"32px", color:"#00ffff"
+        }).setOrigin(0.5);
     }
 }
